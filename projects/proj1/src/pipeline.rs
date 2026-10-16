@@ -11,11 +11,14 @@ const K: u64 = 1000;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("Usage: cargo run --release --bin pipeline filepath");
+    if args.len() != 4 {
+        println!("Usage: cargo run --release --bin pipeline filepath block_size K");
         return;
     }
     let start = std::time::Instant::now();
+
+    let block_size = args[2].parse().unwrap_or(BLOCK_SIZE);
+    let k = args[3].parse().unwrap_or(K);
 
     let file_res = File::open(args[1].clone());
     if file_res.is_err() {
@@ -30,7 +33,7 @@ fn main() {
         return;
     }
     let total_size = metadata.unwrap().len();
-    let num_blocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    let num_blocks = (total_size + block_size - 1) / block_size;
 
     let channel_size = 64;
     let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(channel_size);
@@ -38,17 +41,17 @@ fn main() {
     let compute_thread = std::thread::spawn(move || {
         let mut result = vec![0u8; 16];
         for received in rx {
-            let block_hash = stretch_md5(received.as_slice(), K);
+            let block_hash = stretch_md5(received.as_slice(), k);
             sum_block_hash(&mut result, &block_hash);
         }
         result
     });
 
     let read_thread = std::thread::spawn(move || {
-        let mut buffer = vec![0u8; BLOCK_SIZE as usize];
+        let mut buffer = vec![0u8; block_size as usize];
         for block_idx in 0..num_blocks {
-            let offset = block_idx * BLOCK_SIZE;
-            let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
+            let offset = block_idx * block_size;
+            let bytes_to_read = std::cmp::min(block_size, total_size - offset) as usize;
 
             // read
             let target_buf = &mut buffer[..bytes_to_read];

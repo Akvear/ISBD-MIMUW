@@ -9,10 +9,12 @@ const BLOCK_SIZE: u64 = 512;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("Usage: cargo run --release --bin latency filepath");
+    if args.len() != 3 {
+        println!("Usage: cargo run --release --bin throughput filepath block_size");
         return;
     }
+    let block_size: u64 = args[2].parse().unwrap_or(BLOCK_SIZE);
+
     let start = std::time::Instant::now();
 
     let file_res = File::open(args[1].clone());
@@ -34,7 +36,7 @@ fn main() {
 
     let mut result = vec![0u8; 16];
 
-    for chunk in mmap.chunks(BLOCK_SIZE as usize) {
+    for chunk in mmap.chunks(block_size as usize) {
         let block_hash = md5::compute(chunk);
         sum_block_hash(&mut result, &block_hash);
     }

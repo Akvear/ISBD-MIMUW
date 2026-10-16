@@ -52,10 +52,13 @@ const RAND_SEED: u64 = 1234;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("Usage: cargo run --release --bin latency filepath");
+    if args.len() != 4 {
+        println!("Usage: cargo run --release --bin latency filepath num_threads block_size");
         return;
     }
+
+    let block_size: u64 = args[3].parse().unwrap_or(BLOCK_SIZE);
+    let num_threads: usize = args[2].parse().unwrap_or(16);
 
     let start = std::time::Instant::now();
 
@@ -72,7 +75,7 @@ fn main() {
         return;
     }
     let total_size = metadata.unwrap().len();
-    let num_blocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    let num_blocks = (total_size + block_size - 1) / block_size;
     let random_iter = RandomOrderIterator::with_seed(num_blocks, RAND_SEED);
 
     let offsets: Arc<Vec<u64>> = Arc::new(random_iter.collect());
@@ -96,8 +99,7 @@ fn main() {
         result
     });
 
-    // initialize the reading threads
-    let num_threads = 16;
+    // initialize the reading threads;
     let mut threads = Vec::new();
 
     for _ in 0..num_threads {
@@ -107,7 +109,7 @@ fn main() {
         let offsets = Arc::clone(&offsets);
 
         let thread = std::thread::spawn(move || {
-            let mut buffer = vec![0u8; BLOCK_SIZE as usize];
+            let mut buffer = vec![0u8; block_size as usize];
 
             loop {
                 let task_id = current_task.fetch_add(1, Ordering::Relaxed);
@@ -116,8 +118,8 @@ fn main() {
                 }
 
                 let block_id = offsets[task_id];
-                let offset = block_id * BLOCK_SIZE;
-                let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
+                let offset = block_id * block_size;
+                let bytes_to_read = std::cmp::min(block_size, total_size - offset) as usize;
 
                 file_clone.read_exact_at(&mut buffer[..bytes_to_read], offset)?;
 
