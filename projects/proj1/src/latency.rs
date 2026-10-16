@@ -3,6 +3,8 @@ use rand::{Rng, RngExt, SeedableRng, rng};
 use std::env;
 use std::fs::File;
 use std::os::unix::fs::FileExt;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 mod hash;
 use hash::sum_block_hash;
@@ -73,14 +75,17 @@ fn main() {
     let num_blocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     let random_iter = RandomOrderIterator::with_seed(num_blocks, RAND_SEED);
 
+    let offsets: Arc<Vec<u64>> = Arc::new(random_iter.collect());
+    let total_tasks = offsets.len();
+    let current_task = Arc::new(AtomicUsize::new(0));
+
     // let mut buffer = vec![0u8; BLOCK_SIZE as usize];
     let mut result = vec![0u8; 16];
 
     // initialize the computing thread
-    // play around with this value to see how it affects the performance
-    let channel_buffer_size = 16;
-
+    let channel_buffer_size = 64;
     let (tx, rx) = std::sync::mpsc::sync_channel(channel_buffer_size);
+
     let compute_thread = std::thread::spawn(move || {
         // receive from the channel
         for received in rx {
@@ -93,32 +98,28 @@ fn main() {
 
     // initialize the reading threads
     let num_threads = 16;
-    let condvar = std::sync::Arc::new(std::sync::Condvar::new());
-    let read_queue = std::sync::Arc::new(std::sync::Mutex::new(vec![]));
     let mut threads = Vec::new();
 
     for _ in 0..num_threads {
         let tx_clone = tx.clone();
         let file_clone = file.try_clone().unwrap();
-        let read_queue_clone = read_queue.clone();
-        let condvar_clone = condvar.clone();
+        let current_task = Arc::clone(&current_task);
+        let offsets = Arc::clone(&offsets);
 
         let thread = std::thread::spawn(move || {
-            loop {
-                let (bytes_to_read, offset) = {
-                    let mut queue = read_queue_clone.lock().unwrap();
-                    while queue.is_empty() {
-                        queue = condvar_clone.wait(queue).unwrap();
-                    }
-                    queue.remove(0)
-                };
+            let mut buffer = vec![0u8; BLOCK_SIZE as usize];
 
-                if bytes_to_read == 0 {
+            loop {
+                let task_id = current_task.fetch_add(1, Ordering::Relaxed);
+                if task_id >= total_tasks {
                     break;
                 }
 
-                let mut buffer = vec![0u8; bytes_to_read as usize];
-                let read_result = file_clone.read_exact_at(&mut buffer, offset);
+                let block_id = offsets[task_id];
+                let offset = block_id * BLOCK_SIZE;
+                let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
+
+                let read_result = file_clone.read_exact_at(&mut buffer[..bytes_to_read], offset);
                 if read_result.is_err() {
                     eprintln!(
                         "Error reading file at offset {}: {}",
@@ -128,25 +129,12 @@ fn main() {
                     continue;
                 }
 
-                tx_clone.send(buffer).unwrap();
+                tx_clone.send(buffer.clone()).unwrap();
             }
         });
         threads.push(thread);
     }
 
-    for block_idx in random_iter {
-        let offset = block_idx * BLOCK_SIZE;
-        let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
-
-        read_queue.lock().unwrap().push((bytes_to_read, offset));
-        condvar.notify_one();
-    }
-
-    // Notify all threads that they can stop
-    for _ in 0..num_threads {
-        read_queue.lock().unwrap().push((0, 0));
-    }
-    condvar.notify_all();
     for thread in threads {
         thread.join().unwrap();
     }
