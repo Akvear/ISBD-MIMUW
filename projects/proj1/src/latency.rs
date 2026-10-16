@@ -1,20 +1,23 @@
+use rand::rngs::StdRng;
+use rand::{Rng, RngExt, SeedableRng, rng};
 use std::env;
 use std::fs::File;
 use std::os::unix::fs::FileExt;
-use rand::{rng, Rng, RngExt, SeedableRng};
-use rand::rngs::StdRng;
 
 mod hash;
 use hash::sum_block_hash;
 
 pub struct RandomOrderIterator {
     elements: Vec<u64>,
-    rng: Box<dyn Rng>
+    rng: Box<dyn Rng>,
 }
 
 impl RandomOrderIterator {
     pub fn with_seed(size: u64, seed: u64) -> Self {
-        Self { elements: (0 as u64..size).collect() , rng: Box::new(StdRng::seed_from_u64(seed)), }
+        Self {
+            elements: (0 as u64..size).collect(),
+            rng: Box::new(StdRng::seed_from_u64(seed)),
+        }
     }
 
     pub fn new(size: u64) -> Self {
@@ -46,12 +49,13 @@ const BLOCK_SIZE: u64 = 512;
 const RAND_SEED: u64 = 1234;
 
 fn main() {
-
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: cargo run --release --bin latency filepath");
         return;
     }
+
+    let start = std::time::Instant::now();
 
     let file_res = File::open(args[1].clone());
     if file_res.is_err() {
@@ -71,8 +75,7 @@ fn main() {
 
     let mut buffer = vec![0u8; BLOCK_SIZE as usize];
     let mut result = vec![0u8; 16];
-    for block_idx in random_iter
-    {
+    for block_idx in random_iter {
         let offset = block_idx * BLOCK_SIZE;
         let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
 
@@ -93,5 +96,5 @@ fn main() {
         print!("{:02x}", byte);
     }
     println!("");
-
+    println!("Time: {:?}", start.elapsed());
 }
