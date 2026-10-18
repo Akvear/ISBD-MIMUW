@@ -3,19 +3,19 @@ use std::fs::File;
 use std::os::unix::fs::FileExt;
 
 mod hash;
-use hash::sum_block_hash;
 use hash::stretch_md5;
+use hash::sum_block_hash;
 
 const BLOCK_SIZE: u64 = 1024 * 1024;
 const K: u64 = 1000;
 
 fn main() {
-
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: cargo run --release --bin pipeline filepath");
         return;
     }
+    let start = std::time::Instant::now();
 
     let file_res = File::open(args[1].clone());
     if file_res.is_err() {
@@ -32,29 +32,45 @@ fn main() {
     let total_size = metadata.unwrap().len();
     let num_blocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    let mut buffer = vec![0u8; BLOCK_SIZE as usize];
-    let mut result = vec![0u8; 16];
-    for block_idx in 0..num_blocks
-    {
-        let offset = block_idx * BLOCK_SIZE;
-        let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
+    let channel_size = 64;
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(channel_size);
 
-        // read
-        let target_buf = &mut buffer[..bytes_to_read];
-        let err = file.read_exact_at(target_buf, offset);
-        if err.is_err() {
-            eprintln!("Error reading file: {}", err.unwrap_err());
-            return;
+    let compute_thread = std::thread::spawn(move || {
+        let mut result = vec![0u8; 16];
+        for received in rx {
+            let block_hash = stretch_md5(received.as_slice(), K);
+            sum_block_hash(&mut result, &block_hash);
         }
+        result
+    });
 
-        // compute
-        let block_hash = stretch_md5(&target_buf, K);
-        sum_block_hash(&mut result, &block_hash);
+    let read_thread = std::thread::spawn(move || {
+        let mut buffer = vec![0u8; BLOCK_SIZE as usize];
+        for block_idx in 0..num_blocks {
+            let offset = block_idx * BLOCK_SIZE;
+            let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
+
+            // read
+            let target_buf = &mut buffer[..bytes_to_read];
+            file.read_exact_at(target_buf, offset)?;
+
+            // send to compute thread
+            tx.send(target_buf.to_vec()).unwrap();
+        }
+        Ok::<(), std::io::Error>(())
+    });
+
+    if let Err(err) = read_thread.join().unwrap() {
+        eprintln!("Error reading file: {}", err);
+        return;
     }
+
+    let result = compute_thread.join().unwrap();
+
     print!("{} 0x", args[1].clone());
     for byte in &result {
         print!("{:02x}", byte);
     }
     println!("");
-
+    println!("Time: {:?}", start.elapsed());
 }
