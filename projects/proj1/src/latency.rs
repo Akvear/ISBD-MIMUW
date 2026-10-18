@@ -119,24 +119,20 @@ fn main() {
                 let offset = block_id * BLOCK_SIZE;
                 let bytes_to_read = std::cmp::min(BLOCK_SIZE, total_size - offset) as usize;
 
-                let read_result = file_clone.read_exact_at(&mut buffer[..bytes_to_read], offset);
-                if read_result.is_err() {
-                    eprintln!(
-                        "Error reading file at offset {}: {}",
-                        offset,
-                        read_result.unwrap_err()
-                    );
-                    continue;
-                }
+                file_clone.read_exact_at(&mut buffer[..bytes_to_read], offset)?;
 
                 tx_clone.send(buffer.clone()).unwrap();
             }
+            Ok::<(), std::io::Error>(())
         });
         threads.push(thread);
     }
 
     for thread in threads {
-        thread.join().unwrap();
+        if let Err(err) = thread.join().unwrap() {
+            eprintln!("Error in thread: {}", err);
+            return;
+        }
     }
     drop(tx);
     let result = compute_thread.join().unwrap();
