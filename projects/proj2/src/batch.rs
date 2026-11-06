@@ -91,6 +91,18 @@ impl Batch {
     pub fn column_by_name(&self, name: &str) -> Option<&Column> {
         self.columns.get(self.schema.index_of(name)?)
     }
+
+    pub fn schema(&self) -> &Arc<Schema> {
+        &self.schema
+    }
+
+    pub fn num_rows(&self) -> usize {
+        self.num_rows
+    }
+
+    pub fn columns(&self) -> &[Column] {
+        &self.columns
+    }
 }
 
 // TODO: testy
