@@ -8,6 +8,25 @@ pub mod zigzag;
 pub use boolean::{decode_bool, encode_bool};
 pub use varchar::{decode_varchar, encode_varchar};
 
+use crate::column::Column;
+use crate::schema::DataType;
+
+pub fn encode_column(column: &Column) -> Vec<u8> {
+    match column {
+        Column::Int64(values) => encode_int64(values),
+        Column::Bool(values) => encode_bool(values),
+        Column::Varchar(values) => encode_varchar(values),
+    }
+}
+
+pub fn decode_column(input: &[u8], data_type: DataType, count: usize) -> Option<Column> {
+    Some(match data_type {
+        DataType::Int64 => Column::Int64(decode_int64(input, count)?),
+        DataType::Bool => Column::Bool(decode_bool(input, count)?),
+        DataType::Varchar => Column::Varchar(decode_varchar(input, count)?),
+    })
+}
+
 /// Koduje kolumnę int64: delta → zigzag → varint.
 pub fn encode_int64(values: &[i64]) -> Vec<u8> {
     let mut out = Vec::new();
@@ -52,5 +71,28 @@ mod tests {
         for (original, decoded) in values.iter().zip(decoded.iter()) {
             assert_eq!(original, decoded);
         }
+    }
+
+    #[test]
+    fn column_roundtrip_all_types() {
+        use crate::column::Varchar;
+        let columns = [
+            Column::Int64(vec![3, -1, i64::MAX]),
+            Column::Bool(vec![true, false, true]),
+            Column::Varchar(Varchar::from_iter(["ab", "", "klakier"])),
+        ];
+        for column in columns {
+            let encoded = encode_column(&column);
+            let decoded = decode_column(&encoded, column.data_type(), column.len());
+            assert_eq!(decoded, Some(column));
+        }
+    }
+
+    #[test]
+    fn decode_column_wrong_type_or_count() {
+        let encoded = encode_column(&Column::Bool(vec![true; 3]));
+        // ten sam chunk zdekodowany z innym count lub jako inny typ
+        assert_eq!(decode_column(&encoded, DataType::Bool, 9), None);
+        assert_eq!(decode_column(&encoded, DataType::Varchar, 1), None);
     }
 }
