@@ -64,6 +64,24 @@ impl Varchar {
         let end = self.offsets[i + 1] as usize;
         &self.data[start..end]
     }
+
+    /// Iterator po napisach, w kolejności wierszy.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &[u8]> {
+        self.offsets
+            .iter()
+            .zip(self.offsets.iter().skip(1))
+            .map(|(&start, &end)| &self.data[start as usize..end as usize])
+    }
+}
+
+impl<S: AsRef<[u8]>> FromIterator<S> for Varchar {
+    fn from_iter<I: IntoIterator<Item = S>>(iter: I) -> Self {
+        let mut column = Varchar::new();
+        for s in iter {
+            column.push(s.as_ref());
+        }
+        column
+    }
 }
 
 impl Default for Varchar {
@@ -88,6 +106,20 @@ mod tests {
         assert_eq!(v.get(1), b"");
         assert_eq!(v.get(2), "żółw".as_bytes());
         assert_eq!(v.offsets, [0, 2, 2, 9]);
+    }
+
+    #[test]
+    fn varchar_from_iter_and_iter() {
+        let v = Varchar::from_iter(["ab", "", "żółw"]);
+        assert_eq!(v.offsets, [0, 2, 2, 9]);
+        let owned: Varchar = vec![String::from("ab"), String::new(), "żółw".into()]
+            .into_iter()
+            .collect();
+        assert_eq!(v, owned);
+
+        let back: Vec<&str> = v.iter().map(|s| std::str::from_utf8(s).unwrap()).collect();
+        assert_eq!(back, ["ab", "", "żółw"]);
+        assert_eq!(Varchar::from_iter(Vec::<&str>::new()).iter().len(), 0);
     }
 
     #[test]
