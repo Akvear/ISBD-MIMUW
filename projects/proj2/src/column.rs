@@ -31,6 +31,27 @@ impl Column {
             Column::Varchar(_) => DataType::Varchar,
         }
     }
+
+    pub fn as_int64(&self) -> Option<&[i64]> {
+        match self {
+            Column::Int64(values) => Some(values),
+            _ => None,
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<&[bool]> {
+        match self {
+            Column::Bool(values) => Some(values),
+            _ => None,
+        }
+    }
+
+    pub fn as_varchar(&self) -> Option<&Varchar> {
+        match self {
+            Column::Varchar(values) => Some(values),
+            _ => None,
+        }
+    }
 }
 
 /// Kolumna napisów offsets + data.
