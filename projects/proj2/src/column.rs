@@ -1,5 +1,7 @@
 //! Reprezentacja kolumn w pamięci.
 
+use crate::schema::DataType;
+
 /// Pojedyncza kolumna danych.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Column {
@@ -20,6 +22,14 @@ impl Column {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn data_type(&self) -> DataType {
+        match self {
+            Column::Int64(_) => DataType::Int64,
+            Column::Bool(_) => DataType::Bool,
+            Column::Varchar(_) => DataType::Varchar,
+        }
     }
 }
 
