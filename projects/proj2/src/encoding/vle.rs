@@ -4,10 +4,10 @@
 //! Najwyższy bit = 1 oznacza, że po nim jest kolejny bajt.
 
 /// Maksymalna liczba bajtów potrzebna na zakodowanie `u64` (ceil(64 / 7)).
-pub const MAX_LEN: usize = 10;
+pub(crate) const MAX_LEN: usize = 10;
 
 /// Dopisuje zakodowaną wartość na koniec `out`.
-pub fn encode_u64(value: u64, out: &mut Vec<u8>) {
+pub(crate) fn encode_u64(value: u64, out: &mut Vec<u8>) {
     let mut value = value;
     loop {
         let byte = (value & 0x7F) as u8;
@@ -22,7 +22,7 @@ pub fn encode_u64(value: u64, out: &mut Vec<u8>) {
 }
 
 /// Czyta jedną liczbę z początku `input`.
-pub fn decode_u64(input: &[u8]) -> Option<(u64, usize)> {
+pub(crate) fn decode_u64(input: &[u8]) -> Option<(u64, usize)> {
     let mut value = 0u64;
     let mut shift = 0;
     for (i, &byte) in input.iter().take(MAX_LEN).enumerate() {

@@ -2,7 +2,7 @@
 
 pub mod batch;
 pub mod column;
-pub mod encoding;
+pub(crate) mod encoding;
 pub mod error;
 pub mod file;
 pub mod schema;

@@ -52,7 +52,7 @@ fn calculate_metrics(reader: &mut FileReader<BufReader<std::fs::File>>) -> Total
             }
             if let Some(strings) = col.as_varchar() {
                 totals.ascii_counts[i] +=
-                    strings.data.iter().filter(|b| b.is_ascii()).count() as u64;
+                    strings.data().iter().filter(|b| b.is_ascii()).count() as u64;
             }
         }
     }

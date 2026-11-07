@@ -16,15 +16,15 @@
 //! Reader czyta najpierw ostatnie [`TRAILER_LEN`] bajtów, potem footer,
 //! a następnie row groupy po kolei — w pamięci trzyma tylko jeden naraz.
 
-pub mod meta;
-pub mod reader;
-pub mod writer;
+pub(crate) mod meta;
+mod reader;
+mod writer;
 
 pub use reader::FileReader;
 pub use writer::FileWriter;
 
 /// Magic bytes na początku i na końcu pliku.
-pub const MAGIC: &[u8; 4] = b"KLAK";
+pub(crate) const MAGIC: &[u8; 4] = b"KLAK";
 
 /// Rozmiar końcówki pliku: footer_len (u32 LE) + MAGIC.
-pub const TRAILER_LEN: usize = 4 + MAGIC.len();
+pub(crate) const TRAILER_LEN: usize = 4 + MAGIC.len();

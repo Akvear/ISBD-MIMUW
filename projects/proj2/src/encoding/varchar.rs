@@ -15,7 +15,7 @@ use super::vle;
 use crate::column::Varchar;
 use zstd::DEFAULT_COMPRESSION_LEVEL;
 
-pub fn encode_varchar(column: &Varchar) -> Vec<u8> {
+pub(crate) fn encode_varchar(column: &Varchar) -> Vec<u8> {
     let mut out = Vec::new();
     for i in 0..column.len() {
         let len = column.offsets[i + 1] - column.offsets[i];
@@ -28,7 +28,7 @@ pub fn encode_varchar(column: &Varchar) -> Vec<u8> {
 }
 
 /// Dekoduje `count` napisów zakodowanych przez [`encode_varchar`].
-pub fn decode_varchar(input: &[u8], count: usize) -> Option<Varchar> {
+pub(crate) fn decode_varchar(input: &[u8], count: usize) -> Option<Varchar> {
     if count > input.len() {
         return None;
     }

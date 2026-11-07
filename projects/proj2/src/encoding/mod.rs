@@ -1,17 +1,17 @@
 //! Kodowanie kolumn do bajtów i z powrotem.
 
-pub mod boolean;
-pub mod varchar;
-pub mod vle;
-pub mod zigzag;
+pub(crate) mod boolean;
+pub(crate) mod varchar;
+pub(crate) mod vle;
+pub(crate) mod zigzag;
 
-pub use boolean::{decode_bool, encode_bool};
-pub use varchar::{decode_varchar, encode_varchar};
+pub(crate) use boolean::{decode_bool, encode_bool};
+pub(crate) use varchar::{decode_varchar, encode_varchar};
 
 use crate::column::Column;
 use crate::schema::DataType;
 
-pub fn encode_column(column: &Column) -> Vec<u8> {
+pub(crate) fn encode_column(column: &Column) -> Vec<u8> {
     match column {
         Column::Int64(values) => encode_int64(values),
         Column::Bool(values) => encode_bool(values),
@@ -19,7 +19,7 @@ pub fn encode_column(column: &Column) -> Vec<u8> {
     }
 }
 
-pub fn decode_column(input: &[u8], data_type: DataType, count: usize) -> Option<Column> {
+pub(crate) fn decode_column(input: &[u8], data_type: DataType, count: usize) -> Option<Column> {
     Some(match data_type {
         DataType::Int64 => Column::Int64(decode_int64(input, count)?),
         DataType::Bool => Column::Bool(decode_bool(input, count)?),
@@ -28,7 +28,7 @@ pub fn decode_column(input: &[u8], data_type: DataType, count: usize) -> Option<
 }
 
 /// Koduje kolumnę int64: delta → zigzag → varint.
-pub fn encode_int64(values: &[i64]) -> Vec<u8> {
+pub(crate) fn encode_int64(values: &[i64]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut prev = 0i64;
     for &v in values {
@@ -40,7 +40,7 @@ pub fn encode_int64(values: &[i64]) -> Vec<u8> {
 }
 
 /// Dekoduje `count` wartości zakodowanych przez [`encode_int64`].
-pub fn decode_int64(input: &[u8], count: usize) -> Option<Vec<i64>> {
+pub(crate) fn decode_int64(input: &[u8], count: usize) -> Option<Vec<i64>> {
     if count > input.len() {
         return None;
     }

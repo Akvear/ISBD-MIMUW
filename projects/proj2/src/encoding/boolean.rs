@@ -2,7 +2,7 @@
 //!
 //! Przyklad: `[true, false, true, true]` → `[00001101]`.
 
-pub fn encode_bool(values: &[bool]) -> Vec<u8> {
+pub(crate) fn encode_bool(values: &[bool]) -> Vec<u8> {
     let mut out = Vec::with_capacity(values.len().div_ceil(8));
     for chunk in values.chunks(8) {
         let mut byte = 0u8;
@@ -15,7 +15,7 @@ pub fn encode_bool(values: &[bool]) -> Vec<u8> {
 }
 
 /// Dekoduje `count` wartości zakodowanych przez [`encode_bool`].
-pub fn decode_bool(input: &[u8], count: usize) -> Option<Vec<bool>> {
+pub(crate) fn decode_bool(input: &[u8], count: usize) -> Option<Vec<bool>> {
     if input.len() != count.div_ceil(8) {
         return None;
     }

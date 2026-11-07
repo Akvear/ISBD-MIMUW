@@ -57,8 +57,8 @@ impl Column {
 /// Kolumna napisów offsets + data.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Varchar {
-    pub offsets: Vec<u32>,
-    pub data: Vec<u8>,
+    pub(crate) offsets: Vec<u32>,
+    pub(crate) data: Vec<u8>,
 }
 
 impl Varchar {
@@ -94,6 +94,14 @@ impl Varchar {
         let start = self.offsets[i] as usize;
         let end = self.offsets[i + 1] as usize;
         &self.data[start..end]
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn offsets(&self) -> &[u32] {
+        &self.offsets
     }
 
     /// Iterator po napisach, w kolejności wierszy.

@@ -17,21 +17,21 @@ use crate::error::{KlakierError, Result};
 use crate::schema::{DataType, Schema, TableColumn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ChunkMeta {
-    pub offset: u64,
-    pub len: u64,
+pub(crate) struct ChunkMeta {
+    pub(crate) offset: u64,
+    pub(crate) len: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RowGroupMeta {
-    pub num_rows: u64,
-    pub chunks: Vec<ChunkMeta>,
+pub(crate) struct RowGroupMeta {
+    pub(crate) num_rows: u64,
+    pub(crate) chunks: Vec<ChunkMeta>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileMeta {
-    pub schema: Schema,
-    pub row_groups: Vec<RowGroupMeta>,
+pub(crate) struct FileMeta {
+    pub(crate) schema: Schema,
+    pub(crate) row_groups: Vec<RowGroupMeta>,
 }
 
 fn put(v: u64, out: &mut Vec<u8>) {
@@ -39,11 +39,11 @@ fn put(v: u64, out: &mut Vec<u8>) {
 }
 
 impl FileMeta {
-    pub fn num_rows(&self) -> u64 {
+    pub(crate) fn num_rows(&self) -> u64 {
         self.row_groups.iter().map(|rg| rg.num_rows).sum()
     }
 
-    pub fn encode(&self) -> Vec<u8> {
+    pub(crate) fn encode(&self) -> Vec<u8> {
         let mut out = Vec::new();
 
         put(self.schema.table_columns.len() as u64, &mut out);
@@ -64,7 +64,7 @@ impl FileMeta {
         out
     }
 
-    pub fn decode(input: &[u8]) -> Result<Self> {
+    pub(crate) fn decode(input: &[u8]) -> Result<Self> {
         let mut r = ByteReader { input, pos: 0 };
 
         let num_columns = r.u64()?;

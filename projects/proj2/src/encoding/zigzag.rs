@@ -3,11 +3,11 @@
 //!
 //!  0 → 0,  -1 → 1,  1 → 2,  -2 → 3,  2 → 4, ...
 
-pub fn encode(value: i64) -> u64 {
+pub(crate) fn encode(value: i64) -> u64 {
     ((value >> 63) ^ (value << 1)) as u64
 }
 
-pub fn decode(value: u64) -> i64 {
+pub(crate) fn decode(value: u64) -> i64 {
     (value >> 1) as i64 ^ -((value & 1) as i64)
 }
 
